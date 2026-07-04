@@ -1,0 +1,16 @@
+[package]
+name = "elemtok"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+description = "Human-transcribable, LLM-stable tokens built from chemical element symbols"
+license = "MIT"
+repository = "https://github.com/nibsbin/elemtok-rs"
+readme = "README.md"
+keywords = ["token", "csprng", "entropy", "identifier", "slug"]
+categories = ["cryptography", "algorithms"]
+
+[dependencies]
+getrandom = "0.2"
+
+[dev-dependencies]
