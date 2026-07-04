@@ -13,7 +13,7 @@
 //! `104^length`.
 
 /// The 104-symbol vocabulary, in canonical two-letter chemical casing, in
-/// atomic-number order (periods 1-7; there is no thirteenth period).
+/// atomic-number order.
 pub const ELEMENT_SYMBOLS: [&str; 104] = [
     "He", "Li", "Be", "Ne", "Na", "Mg", "Al", "Si", "Cl", "Ar", "Ca", "Sc", "Ti", "Cr", "Mn", "Fe",
     "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Zr", "Nb", "Mo", "Tc",
@@ -24,7 +24,7 @@ pub const ELEMENT_SYMBOLS: [&str; 104] = [
     "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og",
 ];
 
-/// Size of the vocabulary. 104 - there is no thirteenth period.
+/// Size of the vocabulary (104).
 pub const SYMBOL_COUNT: usize = ELEMENT_SYMBOLS.len();
 
 #[cfg(test)]

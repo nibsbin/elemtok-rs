@@ -23,10 +23,11 @@ pub(crate) fn secure_uint16() -> Result<u16, Error> {
     Ok(u16::from_be_bytes(buffer))
 }
 
-/// Uniformly sample an integer in `[0, n)` for `1 <= n <= 65536` from an
-/// injectable 16-bit source, using rejection sampling. The source is
-/// injectable so tests can drive it with a deterministic stream and prove the
-/// no-bias property exactly.
+/// Uniformly sample an integer in `[0, n)` for `1 <= n <= 65536` by rejection
+/// sampling over `draw`, a fallible 16-bit source. Both public entry points
+/// funnel through here so the range check, reject window, and loop live once;
+/// `draw` returns `Result` so a fallible CSPRNG source can surface its error
+/// instead of panicking inside the closure.
 ///
 /// Why rejection sampling: 65536 is not a multiple of most `n`, so a naive
 /// `value % n` over-represents the low residues (modulo bias). We accept only
@@ -39,9 +40,9 @@ pub(crate) fn secure_uint16() -> Result<u16, Error> {
 /// just `16 / 65536 ≈ 0.024%` for the 104-symbol vocabulary (`max = 65520`).
 /// Sampling a single byte instead would reject up to ~50% (`48 / 256 ≈
 /// 18.75%` at `n = 104`), forcing far more resampling for the same result.
-pub(crate) fn random_index_from<F>(n: u32, mut next16: F) -> Result<u32, Error>
+fn rejection_sample<F>(n: u32, mut draw: F) -> Result<u32, Error>
 where
-    F: FnMut() -> u16,
+    F: FnMut() -> Result<u32, Error>,
 {
     if !(1..=DRAW_SPACE).contains(&n) {
         return Err(Error::InvalidLength {
@@ -52,7 +53,7 @@ where
 
     let max = (DRAW_SPACE / n) * n;
     loop {
-        let v = next16() as u32;
+        let v = draw()?;
         if v < max {
             return Ok(v % n);
         }
@@ -60,30 +61,21 @@ where
     }
 }
 
-/// Uniformly sample an integer in `[0, n)` from the platform CSPRNG, free of
-/// modulo bias.
-///
-/// Unlike [`random_index_from`], the source here (`secure_uint16`) is
-/// fallible, so this is not implemented in terms of `random_index_from`:
-/// doing so would force a choice between silently degrading on a CSPRNG
-/// failure or panicking inside the injected closure. Instead the same
-/// rejection-sampling loop is inlined here so a `NoSecureRandom` error
-/// propagates to the caller directly.
-pub(crate) fn random_index(n: u32) -> Result<u32, Error> {
-    if !(1..=DRAW_SPACE).contains(&n) {
-        return Err(Error::InvalidLength {
-            got: n as usize,
-            max: DRAW_SPACE as usize,
-        });
-    }
+/// Uniformly sample an integer in `[0, n)` from an injectable 16-bit source.
+/// The source is injectable so tests can drive it with a deterministic stream
+/// and prove the no-bias property exactly.
+pub(crate) fn random_index_from<F>(n: u32, mut next16: F) -> Result<u32, Error>
+where
+    F: FnMut() -> u16,
+{
+    rejection_sample(n, || Ok(next16() as u32))
+}
 
-    let max = (DRAW_SPACE / n) * n;
-    loop {
-        let v = secure_uint16()? as u32;
-        if v < max {
-            return Ok(v % n);
-        }
-    }
+/// Uniformly sample an integer in `[0, n)` from the platform CSPRNG, free of
+/// modulo bias. A `NoSecureRandom` error from the source propagates to the
+/// caller.
+pub(crate) fn random_index(n: u32) -> Result<u32, Error> {
+    rejection_sample(n, || Ok(secure_uint16()? as u32))
 }
 
 #[cfg(test)]
