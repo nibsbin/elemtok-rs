@@ -11,6 +11,11 @@ keywords = ["token", "csprng", "entropy", "identifier", "slug"]
 categories = ["cryptography", "algorithms"]
 
 [dependencies]
-getrandom = "0.2"
+# The "js" feature is inert on non-wasm targets; on wasm32-unknown-unknown
+# (the target used when compiling to WASM for the browser or Node.js via
+# wasm-bindgen) it routes entropy through the Web Crypto API instead of
+# failing to compile. wasm32-wasi is supported natively by getrandom without
+# this feature.
+getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
