@@ -11,6 +11,31 @@ const DEFAULT_LENGTH: usize = 10;
 /// ~439 kbits of entropy, so this never constrains real use.
 pub const MAX_LENGTH: usize = 65536;
 
+/// Build a token of `length` symbols, drawing each index from `sample`. Both
+/// public entry points funnel through here so length validation and the
+/// concatenation loop live once; `sample` is fallible so a CSPRNG failure
+/// propagates instead of panicking.
+fn build_token<F>(length: Option<usize>, mut sample: F) -> Result<String, Error>
+where
+    F: FnMut() -> Result<u32, Error>,
+{
+    let length = length.unwrap_or(DEFAULT_LENGTH);
+
+    if !(1..=MAX_LENGTH).contains(&length) {
+        return Err(Error::InvalidLength {
+            got: length,
+            max: MAX_LENGTH,
+        });
+    }
+
+    let mut token = String::with_capacity(length * 2);
+    for _ in 0..length {
+        let index = sample()?;
+        token.push_str(ELEMENT_SYMBOLS[index as usize]);
+    }
+    Ok(token)
+}
+
 /// The seam [`generate`] is built on, exposed for deterministic derivation:
 /// supply your own 16-bit source instead of the CSPRNG to derive a stable
 /// token from a seed. Same rejection sampling, so no modulo bias for any
@@ -31,21 +56,9 @@ pub fn generate_from<F>(mut next16: F, length: Option<usize>) -> Result<String, 
 where
     F: FnMut() -> u16,
 {
-    let length = length.unwrap_or(DEFAULT_LENGTH);
-
-    if !(1..=MAX_LENGTH).contains(&length) {
-        return Err(Error::InvalidLength {
-            got: length,
-            max: MAX_LENGTH,
-        });
-    }
-
-    let mut token = String::with_capacity(length * 2);
-    for _ in 0..length {
-        let index = random_index_from(SYMBOL_COUNT as u32, &mut next16)?;
-        token.push_str(ELEMENT_SYMBOLS[index as usize]);
-    }
-    Ok(token)
+    build_token(length, || {
+        random_index_from(SYMBOL_COUNT as u32, &mut next16)
+    })
 }
 
 /// Generate a token from element symbols.
@@ -65,20 +78,7 @@ where
 /// `[1, MAX_LENGTH]`, or [`Error::NoSecureRandom`] if the platform has no
 /// secure random source.
 pub fn generate(length: Option<usize>) -> Result<String, Error> {
-    let length = length.unwrap_or(DEFAULT_LENGTH);
-    if !(1..=MAX_LENGTH).contains(&length) {
-        return Err(Error::InvalidLength {
-            got: length,
-            max: MAX_LENGTH,
-        });
-    }
-
-    let mut token = String::with_capacity(length * 2);
-    for _ in 0..length {
-        let index = random_index(SYMBOL_COUNT as u32)?;
-        token.push_str(ELEMENT_SYMBOLS[index as usize]);
-    }
-    Ok(token)
+    build_token(length, || random_index(SYMBOL_COUNT as u32))
 }
 
 #[cfg(test)]
