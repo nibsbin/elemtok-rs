@@ -39,6 +39,9 @@ cargo add elemtok
 
 Entropy is sourced via the [`getrandom`](https://docs.rs/getrandom) crate,
 which wraps the operating system's CSPRNG on every supported platform.
+`wasm32-unknown-unknown` (browser / `wasm-bindgen` / Node.js via WASM) and
+`wasm32-wasip1` are both supported: on `wasm32-unknown-unknown`, entropy is
+sourced from the Web Crypto API via the `js` feature enabled by this crate.
 
 ## Quick start
 
